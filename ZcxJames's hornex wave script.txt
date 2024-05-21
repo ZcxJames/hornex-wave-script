@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ZcxJames's hornex wave script
 // @namespace    tampermonkey.net/
-// @version      2.0
-// @description  PLEASE DON'T ATTACT MY SERVER PLS!
-// @author       ZcxJames(x星球上的流沙包)
+// @version      2.1
+// @description  Fetch and display JSON data from zcxjames.top/data.json on the right side of the screen with grid lines, text color change based on time value, lighter font weight, and toggle visibility with Tab key
+// @author       ZcxJames
 // @match        https://hornex.pro/*
 // @grant        GM_xmlhttpRequest
 // @connect      zcxjames.top
@@ -16,182 +16,125 @@
 (function() {
     'use strict';
 
+    let tableVisible = true;
+    const regions = ['as1', 'as2', 'eu1', 'eu2', 'us1', 'us2'];
 
     function createTable(jsonData) {
-        var existingTable = document.getElementById('jsonDataTable');
-        if (existingTable) {
-            existingTable.remove();
-        }
+        const existingTable = document.getElementById('jsonDataTable');
+        if (existingTable) existingTable.remove();
 
-        var table = document.createElement('table');
+        const table = document.createElement('table');
         table.id = 'jsonDataTable';
-        table.style.position = 'fixed';
-        table.style.top = '50%';
-        table.style.right = '0';
-        table.style.transform = 'translateY(-50%)';
-        table.style.border = '1px solid black';
-        table.style.backgroundColor = 'transparent';
-        table.style.zIndex = '1000';
-
-        var thead = document.createElement('thead');
-        var headerRow = document.createElement('tr');
-        var th1 = document.createElement('th'); th1.textContent = 'Region';
-        var th2 = document.createElement('th'); th2.textContent = 'Super';
-        var th3 = document.createElement('th'); th3.textContent = 'Hyper';
-        headerRow.appendChild(th1);
-        headerRow.appendChild(th2);
-        headerRow.appendChild(th3);
-        thead.appendChild(headerRow);
-        table.appendChild(thead);
-
-        var tbody = document.createElement('tbody');
-
-        Object.keys(jsonData).forEach(function(key) {
-            var regionData = jsonData[key];
-            var tr = document.createElement('tr');
-            var tdRegion = document.createElement('td'); tdRegion.textContent = key;
-            var tdSuper = document.createElement('td'); tdSuper.textContent = regionData.Super || 'N/A';
-            var tdHyper = document.createElement('td'); tdHyper.textContent = regionData.Hyper || 'N/A';
-            tr.appendChild(tdRegion);
-            tr.appendChild(tdSuper);
-            tr.appendChild(tdHyper);
-            tbody.appendChild(tr);
-        });
-
-        table.appendChild(tbody);
+        table.style.cssText = `
+            position: fixed;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+            border: 1px solid black;
+            background-color: transparent;
+            z-index: 1000;
+            width: 200px;
+            border-collapse: collapse;
+            font-weight: lighter;
+        `;
+        table.innerHTML = `
+            <thead>
+                <tr><th></th><th>Super</th><th>Hyper</th></tr>
+            </thead>
+            <tbody>
+                ${regions.map(region => `
+                    <tr>
+                        <td style="border: 1px solid black;">${region}</td>
+                        ${['Super', 'Hyper'].map(type => {
+                            const key = `${region}_${type}`;
+                            const data = jsonData[key] || {};
+                            return `
+                                <td style="border: 1px solid black; color: ${data.time === 1 ? '#FFA500' : 'black'};">
+                                    ${data.progress || 'N/A'}
+                                </td>
+                            `;
+                        }).join('')}
+                    </tr>
+                `).join('')}
+            </tbody>
+        `;
         document.body.appendChild(table);
+        table.style.display = tableVisible ? 'table' : 'none';
     }
-
 
     function fetchAndUpdateTable() {
         GM_xmlhttpRequest({
             method: 'GET',
             url: 'https://zcxjames.top/data.json',
-            onload: function(response) {
-                var jsonData = JSON.parse(response.responseText);
-                createTable(jsonData);
-            },
-            onerror: function(error) {
-                console.error('Error fetching JSON data: ', error);
-            }
+            onload: response => createTable(JSON.parse(response.responseText)),
+            onerror: error => console.error('Error fetching JSON data:', error)
         });
     }
 
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Tab') {
+            event.preventDefault();
+            tableVisible = !tableVisible;
+            const table = document.getElementById('jsonDataTable');
+            if (table) table.style.display = tableVisible ? 'table' : 'none';
+        }
+    });
+
     setInterval(fetchAndUpdateTable, 1000);
 
-
-    var servers = {
-        'eu1': 'rgb(166, 56, 237)',
-        'eu2': 'rgb(81, 121, 251)',
-        'as1': 'rgb(237, 61, 234)',
-        'us1': 'rgb(219, 130, 41)',
-        'us2': 'rgb(237, 236, 61)',
-        'as2': 'rgb(61, 179, 203)'
-    };
-    var zones = {
-        'Ultra': 'rgb(255, 43, 117)',
-        'Super': 'rgb(43, 255, 163)',
-        'Hyper': 'rgb(92, 116, 176)',
-        'Waveroom': 'rgb(126, 239, 109)' // 添加 'Waveroom' 区域和对应颜色
-    };
-
-    var container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.top = '50%';
-    container.style.right = '0';
-    container.style.transform = 'translateY(-50%)';
-    container.style.zIndex = '9999';
-    document.body.appendChild(container);
-
-    var table = document.createElement('table');
-    table.style.border = '1px solid black';
-    table.style.borderCollapse = 'collapse';
-    container.appendChild(table);
-
-    var customContent = {
-        '1-2': 'Super wave',
-        '1-3': 'Hyper wave',
-        '2-1': 'as1',
-        '3-1': 'as2',
-        '4-1': 'eu1',
-        '5-1': 'eu2',
-        '6-1': 'us1',
-        '7-1': 'us2'
-    };
-
-    var indicator = document.createElement('div');
-    indicator.style.position = 'fixed';
-    indicator.style.bottom = '20px';
-    indicator.style.right = '0';
-    indicator.style.backgroundColor = 'transparent';
-    indicator.style.padding = '10px';
-    indicator.style.zIndex = '10000';
+    const indicator = document.createElement('div');
+    indicator.style.cssText = 'position: fixed; bottom: 20px; right: 0; background-color: transparent; padding: 10px; z-index: 10000;';
     document.body.appendChild(indicator);
 
-    var currentServer = '';
-    var currentZone = '';
-    var progress = '';
+    let currentServer = '', currentZone = '', progress = '';
 
     function updateIndicator() {
-        Object.keys(servers).forEach(function(server) {
-            var btn = document.querySelector(`div.btn.active[style="background-color: ${servers[server]};"]`);
-            if (btn) {
-                currentServer = server;
+        const servers = {
+            'eu1': 'rgb(166, 56, 237)',
+            'eu2': 'rgb(81, 121, 251)',
+            'as1': 'rgb(237, 61, 234)',
+            'us1': 'rgb(219, 130, 41)',
+            'us2': 'rgb(237, 236, 61)',
+            'as2': 'rgb(61, 179, 203)'
+        };
+        const zones = {
+            'Ultra': 'rgb(255, 43, 117)',
+            'Super': 'rgb(43, 255, 163)',
+            'Hyper': 'rgb(92, 116, 176)',
+            'Waveroom': 'rgb(126, 239, 109)'
+        };
+
+        currentServer = Object.keys(servers).find(server =>
+            document.querySelector(`div.btn.active[style="background-color: ${servers[server]};"]`)) || '';
+        currentZone = Object.keys(zones).find(zone =>
+            document.querySelector(`div.zone-name[stroke="${zone}"]`)) || '';
+        if (document.querySelector('div.zone-name[stroke="Waveroom"]')) currentZone = 'waveroom';
+
+        const waveSpan = document.querySelector('body > div.hud > div.zone > div.progress > span[stroke]');
+        const waveText = waveSpan ? waveSpan.getAttribute('stroke') : '';
+        const waveMatch = waveText.match(/Wave (\d+)/i);
+        const progressBars = document.querySelectorAll('div.bar');
+        progress = waveMatch ? 'Wave ' + waveMatch[1] : '0%';
+
+        progressBars.forEach(bar => {
+            const matches = bar.style.transform.match(/translate\(calc\(-(\d+\.\d+)% \+ \d+\.\d+em\), 0px\)/);
+            if (matches && matches[1]) {
+                const tempProgress = (100 - parseFloat(matches[1])).toFixed(4);
+                if (tempProgress > progress) progress = tempProgress + '%';
             }
         });
-
-        Object.keys(zones).forEach(function(zone) {
-            var zoneDiv = document.querySelector(`div.zone-name[stroke="${zone}"]`);
-            if (zoneDiv) {
-                currentZone = zone;
-            }
-        });
-
-        var zoneNameDiv = document.querySelector('div.zone-name[stroke="Waveroom"]');
-        if (zoneNameDiv) {
-            currentZone = 'waveroom';
-        }
-
-        var waveSpan = document.querySelector('body > div.hud > div.zone > div.progress > span[stroke]');
-        var waveText = waveSpan ? waveSpan.getAttribute('stroke') : '';
-        var waveMatch = waveText.match(/Wave (\d+)/i);
-
-        var progressBars = document.querySelectorAll('div.bar');
-        progress = 0;
-        if (waveMatch) {
-            progress = 'Wave ' + waveMatch[1];
-        } else {
-            progressBars.forEach(function(bar) {
-                var transformValue = bar.style.transform;
-                var matches = transformValue.match(/translate\(calc\(-(\d+\.\d+)% \+ \d+\.\d+em\), 0px\)/);
-                if (matches && matches[1]) {
-                    var tempProgress = (100 - parseFloat(matches[1])).toFixed(4);
-                    if (tempProgress > progress) {
-                        progress = tempProgress + '%';
-                    }
-                }
-            });
-        }
 
         indicator.textContent = `${currentServer || 'Server not detected'} - ${currentZone || 'Zone not detected'} - Progress: ${progress}`;
     }
 
     function sendPost() {
-        var data = {
-            server: currentServer || 'Server not detected',
-            zone: currentZone || 'Zone not detected',
-            progress: progress
-        };
+        const data = { server: currentServer, zone: currentZone, progress: progress };
         GM_xmlhttpRequest({
             method: "POST",
             url: "http://103.193.151.90:5000",
             data: JSON.stringify(data),
-            headers: {
-                "Content-Type": "application/json"
-            },
-            onload: function(response) {
-                console.log('Data sent:', data);
-            }
+            headers: { "Content-Type": "application/json" },
+            onload: () => console.log('Data sent:', data)
         });
     }
 
@@ -201,20 +144,12 @@
     }
 
     animate();
-
     setInterval(sendPost, 1000);
 
-    var observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (mutation.type === 'attributes' && (mutation.attributeName === 'class' || mutation.attributeName === 'stroke' || mutation.attributeName === 'style')) {
-                updateIndicator();
-            }
-        });
-    });
-
-    var config = { attributes: true, subtree: true, attributeFilter: ['style', 'class'] };
-    observer.observe(document.querySelector('body > div.hud > div.zone > div.zone-name'), config);
-    observer.observe(document.querySelector('body > div.hud > div.zone > div.progress > div'), config);
-    observer.observe(document.querySelector('body > div.hud > div.zone > div.progress > span'), config);
-    observer.observe(document.querySelector('body > div.menu'), config);
+    const observerConfig = { attributes: true, subtree: true, attributeFilter: ['style', 'class'] };
+    const observer = new MutationObserver(updateIndicator);
+    observer.observe(document.querySelector('body > div.hud > div.zone > div.zone-name'), observerConfig);
+    observer.observe(document.querySelector('body > div.hud > div.zone > div.progress > div'), observerConfig);
+    observer.observe(document.querySelector('body > div.hud > div.zone > div.progress > span'), observerConfig);
+    observer.observe(document.querySelector('body > div.menu'), observerConfig);
 })();
