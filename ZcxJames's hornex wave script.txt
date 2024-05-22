@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ZcxJames's hornex wave script
 // @namespace    tampermonkey.net/
-// @version      2.1
+// @version      2.2
 // @description  Fetch and display JSON data from zcxjames.top/data.json on the right side of the screen with grid lines, text color change based on time value, lighter font weight, and toggle visibility with Tab key
 // @author       ZcxJames
 // @match        https://hornex.pro/*
@@ -18,6 +18,8 @@
 
     let tableVisible = true;
     const regions = ['as1', 'as2', 'eu1', 'eu2', 'us1', 'us2'];
+    let previousServer = '';
+    let currentServer = '', currentZone = '', progress = '';
 
     function createTable(jsonData) {
         const existingTable = document.getElementById('jsonDataTable');
@@ -71,22 +73,14 @@
         });
     }
 
-    document.addEventListener('keydown', event => {
+    function toggleTableVisibility(event) {
         if (event.key === 'Tab') {
             event.preventDefault();
             tableVisible = !tableVisible;
             const table = document.getElementById('jsonDataTable');
             if (table) table.style.display = tableVisible ? 'table' : 'none';
         }
-    });
-
-    setInterval(fetchAndUpdateTable, 1000);
-
-    const indicator = document.createElement('div');
-    indicator.style.cssText = 'position: fixed; bottom: 20px; right: 0; background-color: transparent; padding: 10px; z-index: 10000;';
-    document.body.appendChild(indicator);
-
-    let currentServer = '', currentZone = '', progress = '';
+    }
 
     function updateIndicator() {
         const servers = {
@@ -124,10 +118,15 @@
             }
         });
 
-        indicator.textContent = `${currentServer || 'Server not detected'} - ${currentZone || 'Zone not detected'} - Progress: ${progress}`;
+        document.getElementById('indicator').textContent = `${currentServer || 'Server not detected'} - ${currentZone || 'Zone not detected'} - Progress: ${progress}`;
     }
 
     function sendPost() {
+        if (currentServer !== previousServer) {
+            previousServer = currentServer;
+            return; // Do not send data if server has changed
+        }
+
         const data = { server: currentServer, zone: currentZone, progress: progress };
         GM_xmlhttpRequest({
             method: "POST",
@@ -138,18 +137,31 @@
         });
     }
 
+    function setupIndicator() {
+        const indicator = document.createElement('div');
+        indicator.id = 'indicator';
+        indicator.style.cssText = 'position: fixed; bottom: 20px; right: 0; background-color: transparent; padding: 10px; z-index: 10000;';
+        document.body.appendChild(indicator);
+    }
+
     function animate() {
         updateIndicator();
         requestAnimationFrame(animate);
     }
 
-    animate();
+    document.addEventListener('keydown', toggleTableVisibility);
+    setInterval(fetchAndUpdateTable, 1000);
     setInterval(sendPost, 1000);
+    setupIndicator();
+    animate();
 
     const observerConfig = { attributes: true, subtree: true, attributeFilter: ['style', 'class'] };
     const observer = new MutationObserver(updateIndicator);
-    observer.observe(document.querySelector('body > div.hud > div.zone > div.zone-name'), observerConfig);
-    observer.observe(document.querySelector('body > div.hud > div.zone > div.progress > div'), observerConfig);
-    observer.observe(document.querySelector('body > div.hud > div.zone > div.progress > span'), observerConfig);
+    const hudZone = document.querySelector('body > div.hud > div.zone');
+    if (hudZone) {
+        observer.observe(hudZone.querySelector('div.zone-name'), observerConfig);
+        observer.observe(hudZone.querySelector('div.progress > div'), observerConfig);
+        observer.observe(hudZone.querySelector('div.progress > span'), observerConfig);
+    }
     observer.observe(document.querySelector('body > div.menu'), observerConfig);
 })();
