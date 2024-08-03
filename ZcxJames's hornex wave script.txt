@@ -16,10 +16,18 @@
 (function() {
     'use strict';
 
-    let tableVisible = true;
     const regions = ['as1', 'as2', 'eu1', 'eu2', 'us1', 'us2'];
+    let tableVisible = true;
     let previousServer = '';
-    let currentServer = '', currentZone = '', progress = '';
+    let previousZone = '';
+    let currentServer = '';
+    let currentZone = '';
+    let progress = '';
+
+    const servers = {
+        'eu1': 'rgb(166, 56, 237)','eu2': 'rgb(81, 121, 251)','as1': 'rgb(237, 61, 234)','us1': 'rgb(219, 130, 41)','us2': 'rgb(237, 236, 61)','as2': 'rgb(61, 179, 203)'};
+    const zones = {
+        'Ultra': 'rgb(255, 43, 117)','Super': 'rgb(43, 255, 163)','Hyper': 'rgb(92, 116, 176)','Waveroom': 'rgb(126, 239, 109)'};
 
     function createTable(jsonData) {
         const existingTable = document.getElementById('jsonDataTable');
@@ -28,38 +36,25 @@
         const table = document.createElement('table');
         table.id = 'jsonDataTable';
         table.style.cssText = `
-            position: fixed;
-            top: 50%;
-            right: 0;
-            transform: translateY(-50%);
-            border: 1px solid black;
-            background-color: transparent;
-            z-index: 1000;
-            width: 200px;
-            border-collapse: collapse;
-            font-weight: lighter;
+            position: fixed; top: 50%; right: 0; transform: translateY(-50%);
+            border: 1px solid black; background-color: transparent;
+            z-index: 1000; width: 200px; border-collapse: collapse; font-weight: lighter;
         `;
-        table.innerHTML = `
-            <thead>
-                <tr><th></th><th>Super</th><th>Hyper</th></tr>
-            </thead>
-            <tbody>
-                ${regions.map(region => `
-                    <tr>
-                        <td style="border: 1px solid black;">${region}</td>
-                        ${['Super', 'Hyper'].map(type => {
-                            const key = `${region}_${type}`;
-                            const data = jsonData[key] || {};
-                            return `
-                                <td style="border: 1px solid black; color: ${data.time === 1 ? '#FFA500' : 'black'};">
-                                    ${data.progress || 'N/A'}
-                                </td>
-                            `;
-                        }).join('')}
-                    </tr>
-                `).join('')}
-            </tbody>
-        `;
+
+        const header = '<thead><tr><th></th><th>Super</th><th>Hyper</th></tr></thead>';
+        const rows = regions.map(region => `
+            <tr>
+                <td style="border: 1px solid black;">${region}</td>
+                ${['Super', 'Hyper'].map(type => {
+                    const key = `${region}_${type}`;
+                    const data = jsonData[key] || {};
+                    return `
+                        <td style="border: 1px solid black; color: ${data.time === 1 ? '#FFA500' : 'black'};">
+                            ${data.progress || 'N/A'}
+                        </td>`;
+                }).join('')}
+            </tr>`).join('');
+        table.innerHTML = header + '<tbody>' + rows + '</tbody>';
         document.body.appendChild(table);
         table.style.display = tableVisible ? 'table' : 'none';
     }
@@ -68,8 +63,7 @@
         GM_xmlhttpRequest({
             method: 'GET',
             url: 'https://zcxjames.top/data.json',
-            onload: response => createTable(JSON.parse(response.responseText)),
-            onerror: error => console.error('Error fetching JSON data:', error)
+            onload: response => createTable(JSON.parse(response.responseText))
         });
     }
 
@@ -83,21 +77,6 @@
     }
 
     function updateIndicator() {
-        const servers = {
-            'eu1': 'rgb(166, 56, 237)',
-            'eu2': 'rgb(81, 121, 251)',
-            'as1': 'rgb(237, 61, 234)',
-            'us1': 'rgb(219, 130, 41)',
-            'us2': 'rgb(237, 236, 61)',
-            'as2': 'rgb(61, 179, 203)'
-        };
-        const zones = {
-            'Ultra': 'rgb(255, 43, 117)',
-            'Super': 'rgb(43, 255, 163)',
-            'Hyper': 'rgb(92, 116, 176)',
-            'Waveroom': 'rgb(126, 239, 109)'
-        };
-
         currentServer = Object.keys(servers).find(server =>
             document.querySelector(`div.btn.active[style="background-color: ${servers[server]};"]`)) || '';
         currentZone = Object.keys(zones).find(zone =>
@@ -107,14 +86,13 @@
         const waveSpan = document.querySelector('body > div.hud > div.zone > div.progress > span[stroke]');
         const waveText = waveSpan ? waveSpan.getAttribute('stroke') : '';
         const waveMatch = waveText.match(/Wave (\d+)/i);
-        const progressBars = document.querySelectorAll('div.bar');
         progress = waveMatch ? 'Wave ' + waveMatch[1] : '0%';
 
-        progressBars.forEach(bar => {
-            const matches = bar.style.transform.match(/translate\(calc\(-(\d+\.\d+)% \+ \d+\.\d+em\), 0px\)/);
+        document.querySelectorAll('div.bar').forEach(bar => {
+            const matches = bar.style.transform.match(/translate\(calc\(-(\d+(\.\d+)?)% \+ \d+(\.\d+)?em\), 0px\)/);
             if (matches && matches[1]) {
                 const tempProgress = (100 - parseFloat(matches[1])).toFixed(4);
-                if (tempProgress > progress) progress = tempProgress + '%';
+                if (parseFloat(tempProgress) > parseFloat(progress)) progress = tempProgress + '%';
             }
         });
 
@@ -122,9 +100,10 @@
     }
 
     function sendPost() {
-        if (currentServer !== previousServer) {
+        if (currentServer !== previousServer || currentZone !== previousZone) {
             previousServer = currentServer;
-            return; // Do not send data if server has changed
+            previousZone = currentZone;
+            return; // Do not send data if server or zone has changed
         }
 
         const data = { server: currentServer, zone: currentZone, progress: progress };
@@ -132,8 +111,7 @@
             method: "POST",
             url: "http://103.193.151.90:5000",
             data: JSON.stringify(data),
-            headers: { "Content-Type": "application/json" },
-            onload: () => console.log('Data sent:', data)
+            headers: { "Content-Type": "application/json" }
         });
     }
 
@@ -144,16 +122,10 @@
         document.body.appendChild(indicator);
     }
 
-    function animate() {
-        updateIndicator();
-        requestAnimationFrame(animate);
-    }
-
     document.addEventListener('keydown', toggleTableVisibility);
     setInterval(fetchAndUpdateTable, 1000);
     setInterval(sendPost, 1000);
     setupIndicator();
-    animate();
 
     const observerConfig = { attributes: true, subtree: true, attributeFilter: ['style', 'class'] };
     const observer = new MutationObserver(updateIndicator);
@@ -164,4 +136,9 @@
         observer.observe(hudZone.querySelector('div.progress > span'), observerConfig);
     }
     observer.observe(document.querySelector('body > div.menu'), observerConfig);
+
+    (function animate() {
+        updateIndicator();
+        requestAnimationFrame(animate);
+    })();
 })();
