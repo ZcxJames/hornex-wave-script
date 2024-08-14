@@ -9,14 +9,14 @@
 // @connect      zcxjames.top
 // @connect      103.193.151.90
 // @license      GPL
-// @downloadURL  https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.user.js
-// @updateURL    https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.meta.js
+// @downloadURL https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.user.js
+// @updateURL https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.meta.js
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const scriptVersion = '2.5';
+    const scriptVersion = '2.4';
     const regions = ['as1', 'as2', 'eu1', 'eu2', 'us1', 'us2'];
     const servers = {
         'eu1': 'rgb(166, 56, 237)', 'eu2': 'rgb(81, 121, 251)',
@@ -135,29 +135,31 @@
             method: 'GET',
             url: 'https://zcxjames.top/version.json',
             onload: response => {
-                const remoteVersion = JSON.parse(response.responseText).version;
-                if (remoteVersion !== scriptVersion) displayVersionWarning();
+                const remoteVersion = response.responseText.trim();
+                if (remoteVersion !== scriptVersion) {
+                    displayVersionWarning();
+                }
             }
         });
     }
 
-function displayVersionWarning() {
-    const warningDiv = document.createElement('div');
-    warningDiv.id = 'versionWarning';
-    warningDiv.style.cssText = `
-        position: fixed; bottom: 0; right: 0;
-        background-color: red; color: white; padding: 10px;
-        z-index: 10000; font-weight: bold; white-space: pre-wrap;
-    `;
-    warningDiv.innerHTML = `
-        The script has a new version. Please update your script.
-        \n\n Visit the release page:
-        <a href="https://github.com/ZcxJames/hornex-wave-script/releases" target="_blank" style="color: white; text-decoration: underline;">
-            https://github.com/ZcxJames/hornex-wave-script/releases
-        </a>
-    `;
-    document.body.appendChild(warningDiv);
-}
+    function displayVersionWarning() {
+        const warningDiv = document.createElement('div');
+        warningDiv.id = 'versionWarning';
+        warningDiv.style.cssText = `
+            position: fixed; bottom: 0; right: 0;
+            background-color: red; color: white; padding: 10px;
+            z-index: 10000; font-weight: bold; white-space: pre-wrap;
+        `;
+        warningDiv.innerHTML = `
+            The script has a new version. Please update your script.
+            \n\n Visit the release page:
+            <a href="https://github.com/ZcxJames/hornex-wave-script/releases" target="_blank" style="color: white; text-decoration: underline;">
+                https://github.com/ZcxJames/hornex-wave-script/releases
+            </a>
+        `;
+        document.body.appendChild(warningDiv);
+    }
 
     document.addEventListener('keydown', toggleTableVisibility);
     setInterval(fetchAndUpdateTable, 1000);
