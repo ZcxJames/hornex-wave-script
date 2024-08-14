@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ZcxJames's hornex wave script
 // @namespace    tampermonkey.net/
-// @version      2.2
+// @version      2.5
 // @description  Fetch and display JSON data from zcxjames.top/data.json on the right side of the screen with grid lines, text color change based on time value, lighter font weight, and toggle visibility with Tab key
 // @author       ZcxJames
 // @match        https://hornex.pro/*
@@ -9,25 +9,27 @@
 // @connect      zcxjames.top
 // @connect      103.193.151.90
 // @license      GPL
-// @downloadURL https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.user.js
-// @updateURL https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.meta.js
+// @downloadURL  https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.user.js
+// @updateURL    https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.meta.js
 // ==/UserScript==
 
 (function() {
     'use strict';
 
+    const scriptVersion = '2.5';
     const regions = ['as1', 'as2', 'eu1', 'eu2', 'us1', 'us2'];
-    let tableVisible = true;
-    let previousServer = '';
-    let previousZone = '';
-    let currentServer = '';
-    let currentZone = '';
-    let progress = '';
-
     const servers = {
-        'eu1': 'rgb(166, 56, 237)','eu2': 'rgb(81, 121, 251)','as1': 'rgb(237, 61, 234)','us1': 'rgb(219, 130, 41)','us2': 'rgb(237, 236, 61)','as2': 'rgb(61, 179, 203)'};
+        'eu1': 'rgb(166, 56, 237)', 'eu2': 'rgb(81, 121, 251)',
+        'as1': 'rgb(237, 61, 234)', 'us1': 'rgb(219, 130, 41)',
+        'us2': 'rgb(237, 236, 61)', 'as2': 'rgb(61, 179, 203)'
+    };
     const zones = {
-        'Ultra': 'rgb(255, 43, 117)','Super': 'rgb(43, 255, 163)','Hyper': 'rgb(92, 116, 176)','Waveroom': 'rgb(126, 239, 109)'};
+        'Ultra': 'rgb(255, 43, 117)', 'Super': 'rgb(43, 255, 163)',
+        'Hyper': 'rgb(92, 116, 176)', 'Waveroom': 'rgb(126, 239, 109)'
+    };
+
+    let tableVisible = true;
+    let previousServer = '', previousZone = '', currentServer = '', currentZone = '', progress = '';
 
     function createTable(jsonData) {
         const existingTable = document.getElementById('jsonDataTable');
@@ -41,20 +43,27 @@
             z-index: 1000; width: 200px; border-collapse: collapse; font-weight: lighter;
         `;
 
-        const header = '<thead><tr><th></th><th>Super</th><th>Hyper</th></tr></thead>';
-        const rows = regions.map(region => `
-            <tr>
-                <td style="border: 1px solid black;">${region}</td>
-                ${['Super', 'Hyper'].map(type => {
-                    const key = `${region}_${type}`;
-                    const data = jsonData[key] || {};
-                    return `
-                        <td style="border: 1px solid black; color: ${data.time === 1 ? '#FFA500' : 'black'};">
-                            ${data.progress || 'N/A'}
-                        </td>`;
-                }).join('')}
-            </tr>`).join('');
-        table.innerHTML = header + '<tbody>' + rows + '</tbody>';
+        table.innerHTML = `
+            <thead>
+                <tr><th style="border: 1px solid black;">&nbsp;</th>
+                    <th style="border: 1px solid black;">Super</th>
+                    <th style="border: 1px solid black;">Hyper</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${regions.map(region => `
+                    <tr>
+                        <td style="border: 1px solid black;">${region}</td>
+                        ${['Super', 'Hyper'].map(type => {
+                            const key = `${region}_${type}`;
+                            const data = jsonData[key] || {};
+                            const timeValue = data.time;
+                            const progress = data.progress || 'N/A';
+                            return `<td style="border: 1px solid black; color: ${timeValue ? 'orange' : 'black'};">${progress}</td>`;
+                        }).join('')}
+                    </tr>`).join('')}
+            </tbody>`;
+
         document.body.appendChild(table);
         table.style.display = tableVisible ? 'table' : 'none';
     }
@@ -77,22 +86,21 @@
     }
 
     function updateIndicator() {
-        currentServer = Object.keys(servers).find(server =>
-            document.querySelector(`div.btn.active[style="background-color: ${servers[server]};"]`)) || '';
-        currentZone = Object.keys(zones).find(zone =>
-            document.querySelector(`div.zone-name[stroke="${zone}"]`)) || '';
-        if (document.querySelector('div.zone-name[stroke="Waveroom"]')) currentZone = 'waveroom';
-
+        const activeButton = document.querySelector('div.btn.active');
+        const zoneName = document.querySelector('div.zone-name');
         const waveSpan = document.querySelector('body > div.hud > div.zone > div.progress > span[stroke]');
-        const waveText = waveSpan ? waveSpan.getAttribute('stroke') : '';
-        const waveMatch = waveText.match(/Wave (\d+)/i);
-        progress = waveMatch ? 'Wave ' + waveMatch[1] : '0%';
+
+        currentServer = activeButton ? Object.keys(servers).find(server => activeButton.style.backgroundColor === servers[server]) : '';
+        currentZone = zoneName ? Object.keys(zones).find(zone => zoneName.getAttribute('stroke') === zones[zone]) : '';
+        if (document.querySelector('div.zone-name[stroke="Waveroom"]')) currentZone = 'Waveroom';
+
+        const waveMatch = waveSpan ? waveSpan.getAttribute('stroke').match(/Wave (\d+)/i) : null;
+        progress = waveMatch ? `Wave ${waveMatch[1]}` : '0%';
 
         document.querySelectorAll('div.bar').forEach(bar => {
-            const matches = bar.style.transform.match(/translate\(calc\(-(\d+(\.\d+)?)% \+ \d+(\.\d+)?em\), 0px\)/);
-            if (matches && matches[1]) {
-                const tempProgress = (100 - parseFloat(matches[1])).toFixed(4);
-                if (parseFloat(tempProgress) > parseFloat(progress)) progress = tempProgress + '%';
+            const match = bar.style.transform.match(/translate\(calc\(-(\d+(\.\d+)?)% \+ \d+(\.\d+)?em\), 0px\)/);
+            if (match && parseFloat(match[1]) < parseFloat(progress)) {
+                progress = `${(100 - parseFloat(match[1])).toFixed(4)}%`;
             }
         });
 
@@ -100,17 +108,17 @@
     }
 
     function sendPost() {
+        if (document.hidden) return;
         if (currentServer !== previousServer || currentZone !== previousZone) {
             previousServer = currentServer;
             previousZone = currentZone;
-            return; // Do not send data if server or zone has changed
+            return;
         }
 
-        const data = { server: currentServer, zone: currentZone, progress: progress };
         GM_xmlhttpRequest({
             method: "POST",
             url: "http://103.193.151.90:5000",
-            data: JSON.stringify(data),
+            data: JSON.stringify({ server: currentServer, zone: currentZone, progress }),
             headers: { "Content-Type": "application/json" }
         });
     }
@@ -122,23 +130,52 @@
         document.body.appendChild(indicator);
     }
 
+    function checkVersion() {
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: 'https://zcxjames.top/version.json',
+            onload: response => {
+                const remoteVersion = JSON.parse(response.responseText).version;
+                if (remoteVersion !== scriptVersion) displayVersionWarning();
+            }
+        });
+    }
+
+function displayVersionWarning() {
+    const warningDiv = document.createElement('div');
+    warningDiv.id = 'versionWarning';
+    warningDiv.style.cssText = `
+        position: fixed; bottom: 0; right: 0;
+        background-color: red; color: white; padding: 10px;
+        z-index: 10000; font-weight: bold; white-space: pre-wrap;
+    `;
+    warningDiv.innerHTML = `
+        The script has a new version. Please update your script.
+        \n\n Visit the release page:
+        <a href="https://github.com/ZcxJames/hornex-wave-script/releases" target="_blank" style="color: white; text-decoration: underline;">
+            https://github.com/ZcxJames/hornex-wave-script/releases
+        </a>
+    `;
+    document.body.appendChild(warningDiv);
+}
+
     document.addEventListener('keydown', toggleTableVisibility);
     setInterval(fetchAndUpdateTable, 1000);
     setInterval(sendPost, 1000);
     setupIndicator();
+    checkVersion();
 
-    const observerConfig = { attributes: true, subtree: true, attributeFilter: ['style', 'class'] };
     const observer = new MutationObserver(updateIndicator);
     const hudZone = document.querySelector('body > div.hud > div.zone');
     if (hudZone) {
-        observer.observe(hudZone.querySelector('div.zone-name'), observerConfig);
-        observer.observe(hudZone.querySelector('div.progress > div'), observerConfig);
-        observer.observe(hudZone.querySelector('div.progress > span'), observerConfig);
+        observer.observe(hudZone.querySelector('div.zone-name'), { attributes: true, subtree: true, attributeFilter: ['style', 'class'] });
+        observer.observe(hudZone.querySelector('div.progress > div'), { attributes: true, subtree: true, attributeFilter: ['style', 'class'] });
+        observer.observe(hudZone.querySelector('div.progress > span'), { attributes: true, subtree: true, attributeFilter: ['style', 'class'] });
     }
-    observer.observe(document.querySelector('body > div.menu'), observerConfig);
+    observer.observe(document.querySelector('body > div.menu'), { attributes: true, subtree: true, attributeFilter: ['style', 'class'] });
 
-    (function animate() {
+    requestAnimationFrame(function animate() {
         updateIndicator();
         requestAnimationFrame(animate);
-    })();
+    });
 })();
