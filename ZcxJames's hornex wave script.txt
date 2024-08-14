@@ -9,8 +9,8 @@
 // @connect      zcxjames.top
 // @connect      103.193.151.90
 // @license      GPL
-// @downloadURL https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.user.js
-// @updateURL https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.meta.js
+// @downloadURL  https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.user.js
+// @updateURL    https://update.greasyfork.org/scripts/494390/ZcxJames%27s%20hornex%20wave%20script.meta.js
 // ==/UserScript==
 
 (function() {
@@ -18,20 +18,21 @@
 
     const scriptVersion = '2.4';
     const regions = ['as1', 'as2', 'eu1', 'eu2', 'us1', 'us2'];
+    let tableVisible = true;
+    let previousServer = '';
+    let previousZone = '';
+    let currentServer = '';
+    let currentZone = '';
+    let progress = '';
+
     const servers = {
-        'eu1': 'rgb(166, 56, 237)', 'eu2': 'rgb(81, 121, 251)',
-        'as1': 'rgb(237, 61, 234)', 'us1': 'rgb(219, 130, 41)',
-        'us2': 'rgb(237, 236, 61)', 'as2': 'rgb(61, 179, 203)'
+        'eu1': 'rgb(166, 56, 237)', 'eu2': 'rgb(81, 121, 251)', 'as1': 'rgb(237, 61, 234)', 'us1': 'rgb(219, 130, 41)', 'us2': 'rgb(237, 236, 61)', 'as2': 'rgb(61, 179, 203)'
     };
     const zones = {
-        'Ultra': 'rgb(255, 43, 117)', 'Super': 'rgb(43, 255, 163)',
-        'Hyper': 'rgb(92, 116, 176)', 'Waveroom': 'rgb(126, 239, 109)'
+        'Ultra': 'rgb(255, 43, 117)', 'Super': 'rgb(43, 255, 163)', 'Hyper': 'rgb(92, 116, 176)', 'Waveroom': 'rgb(126, 239, 109)'
     };
 
-    let tableVisible = true;
-    let previousServer = '', previousZone = '', currentServer = '', currentZone = '', progress = '';
-
-    function createTable(jsonData) {
+function createTable(jsonData) {
         const existingTable = document.getElementById('jsonDataTable');
         if (existingTable) existingTable.remove();
 
@@ -86,21 +87,22 @@
     }
 
     function updateIndicator() {
-        const activeButton = document.querySelector('div.btn.active');
-        const zoneName = document.querySelector('div.zone-name');
+        currentServer = Object.keys(servers).find(server =>
+            document.querySelector(`div.btn.active[style="background-color: ${servers[server]};"]`)) || '';
+        currentZone = Object.keys(zones).find(zone =>
+            document.querySelector(`div.zone-name[stroke="${zone}"]`)) || '';
+        if (document.querySelector('div.zone-name[stroke="Waveroom"]')) currentZone = 'waveroom';
+
         const waveSpan = document.querySelector('body > div.hud > div.zone > div.progress > span[stroke]');
-
-        currentServer = activeButton ? Object.keys(servers).find(server => activeButton.style.backgroundColor === servers[server]) : '';
-        currentZone = zoneName ? Object.keys(zones).find(zone => zoneName.getAttribute('stroke') === zones[zone]) : '';
-        if (document.querySelector('div.zone-name[stroke="Waveroom"]')) currentZone = 'Waveroom';
-
-        const waveMatch = waveSpan ? waveSpan.getAttribute('stroke').match(/Wave (\d+)/i) : null;
-        progress = waveMatch ? `Wave ${waveMatch[1]}` : '0%';
+        const waveText = waveSpan ? waveSpan.getAttribute('stroke') : '';
+        const waveMatch = waveText.match(/Wave (\d+)/i);
+        progress = waveMatch ? 'Wave ' + waveMatch[1] : '0%';
 
         document.querySelectorAll('div.bar').forEach(bar => {
-            const match = bar.style.transform.match(/translate\(calc\(-(\d+(\.\d+)?)% \+ \d+(\.\d+)?em\), 0px\)/);
-            if (match && parseFloat(match[1]) < parseFloat(progress)) {
-                progress = `${(100 - parseFloat(match[1])).toFixed(4)}%`;
+            const matches = bar.style.transform.match(/translate\(calc\(-(\d+(\.\d+)?)% \+ \d+(\.\d+)?em\), 0px\)/);
+            if (matches && matches[1]) {
+                const tempProgress = (100 - parseFloat(matches[1])).toFixed(4);
+                if (parseFloat(tempProgress) > parseFloat(progress)) progress = tempProgress + '%';
             }
         });
 
@@ -108,17 +110,21 @@
     }
 
     function sendPost() {
-        if (document.hidden) return;
+        if (document.hidden) {
+            return;
+        }
+
         if (currentServer !== previousServer || currentZone !== previousZone) {
             previousServer = currentServer;
             previousZone = currentZone;
             return;
         }
 
+        const data = { server: currentServer, zone: currentZone, progress: progress };
         GM_xmlhttpRequest({
             method: "POST",
             url: "http://103.193.151.90:5000",
-            data: JSON.stringify({ server: currentServer, zone: currentZone, progress }),
+            data: JSON.stringify(data),
             headers: { "Content-Type": "application/json" }
         });
     }
@@ -135,7 +141,7 @@
             method: 'GET',
             url: 'https://zcxjames.top/version.json',
             onload: response => {
-                const remoteVersion = response.responseText.trim();
+                const remoteVersion = JSON.parse(response.responseText).version;
                 if (remoteVersion !== scriptVersion) {
                     displayVersionWarning();
                 }
@@ -146,18 +152,8 @@
     function displayVersionWarning() {
         const warningDiv = document.createElement('div');
         warningDiv.id = 'versionWarning';
-        warningDiv.style.cssText = `
-            position: fixed; bottom: 0; right: 0;
-            background-color: red; color: white; padding: 10px;
-            z-index: 10000; font-weight: bold; white-space: pre-wrap;
-        `;
-        warningDiv.innerHTML = `
-            The script has a new version. Please update your script.
-            \n\n Visit the release page:
-            <a href="https://github.com/ZcxJames/hornex-wave-script/releases" target="_blank" style="color: white; text-decoration: underline;">
-                https://github.com/ZcxJames/hornex-wave-script/releases
-            </a>
-        `;
+        warningDiv.style.cssText = 'position: fixed; bottom: 0; right: 0; background-color: red; color: white; padding: 10px; z-index: 10000; font-weight: bold; text-align: center;';
+        warningDiv.innerHTML = 'The script has a new version.<br>Please update your script at<br><a href="https://github.com/ZcxJames/hornex-wave-script/releases" style="color: white;">https://github.com/ZcxJames/hornex-wave-script/releases</a>';
         document.body.appendChild(warningDiv);
     }
 
@@ -167,17 +163,18 @@
     setupIndicator();
     checkVersion();
 
+    const observerConfig = { attributes: true, subtree: true, attributeFilter: ['style', 'class'] };
     const observer = new MutationObserver(updateIndicator);
     const hudZone = document.querySelector('body > div.hud > div.zone');
     if (hudZone) {
-        observer.observe(hudZone.querySelector('div.zone-name'), { attributes: true, subtree: true, attributeFilter: ['style', 'class'] });
-        observer.observe(hudZone.querySelector('div.progress > div'), { attributes: true, subtree: true, attributeFilter: ['style', 'class'] });
-        observer.observe(hudZone.querySelector('div.progress > span'), { attributes: true, subtree: true, attributeFilter: ['style', 'class'] });
+        observer.observe(hudZone.querySelector('div.zone-name'), observerConfig);
+        observer.observe(hudZone.querySelector('div.progress > div'), observerConfig);
+        observer.observe(hudZone.querySelector('div.progress > span'), observerConfig);
     }
-    observer.observe(document.querySelector('body > div.menu'), { attributes: true, subtree: true, attributeFilter: ['style', 'class'] });
+    observer.observe(document.querySelector('body > div.menu'), observerConfig);
 
-    requestAnimationFrame(function animate() {
+    (function animate() {
         updateIndicator();
         requestAnimationFrame(animate);
-    });
+    })();
 })();
