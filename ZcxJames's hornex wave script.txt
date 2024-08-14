@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ZcxJames's hornex wave script
 // @namespace    tampermonkey.net/
-// @version      2.5
+// @version      2.4
 // @description  Fetch and display JSON data from zcxjames.top/data.json on the right side of the screen with grid lines, text color change based on time value, lighter font weight, and toggle visibility with Tab key
 // @author       ZcxJames
 // @match        https://hornex.pro/*
