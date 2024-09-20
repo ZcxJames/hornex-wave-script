@@ -5,8 +5,11 @@ https://zcxjames.top/zcxjames_hornex_wave_script/
 下载：
 
 本站下载：https://zcxjames.top/zcxjames_hornex_wave_script/download.php
+
 GitHub 下载：https://github.com/ZcxJames/hornex-wave-script/releases
+
 GreasyFork 下载：https://greasyfork.org/scripts/494390-zcxjames-s-hornex-wave-script
+
 使用：寻找浏览器网页栏右侧扩展（扩展程序）。点进去，找到管理扩展，找到应用商店，搜索 Tampermonkey，选择黑色图标或者红色图标均可，点击添加，等待安装好后回到网页。找到网址栏右侧的扩展图标，点进去点击篡改猴，再点击添加新脚本。之后下载我的脚本文件，将 txt文件打开全部复制，粘贴到新建用户脚本，点击左上角文件，保存。之后刷新 hornex 网页，如果发现右侧有一个表格，右下角能正常获取 wave 进度，说明安装成功。若安装不成功或发现 bug 请联系我。
 
 本脚本不会盗你的信号，zert 大概率也不会封你的号（至少我没有，YOBA用类似的脚本也没被封）。
