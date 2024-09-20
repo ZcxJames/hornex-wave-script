@@ -199,7 +199,7 @@ document.getElementById('loadInfo').addEventListener('click', () => {
     function fetchAndUpdateTable() {
         GM_xmlhttpRequest({
             method: 'GET',
-            url: 'https://zcxjames.top/data.json',
+            url: 'https://zcxjames.top/wave.json',
             onload: response => createTable(JSON.parse(response.responseText))
         });
     }
